@@ -750,45 +750,12 @@ jobs:
           server-password: MAVEN_PASSWORD
 
       - name: Package
-        if: ${{ github.event_name != 'push' && github.event_name != 'release' }}
+        if: ${{ github.event_name != 'release' }}
         run: |
           mvn \
             --batch-mode \
             --no-transfer-progress \
             package
-
-      - name: Setup GPG
-        if: ${{ github.event_name == 'push' || github.event_name == 'release' }}
-        run: |
-          cat <(echo -e "${{ secrets.OSSRH_GPG_SECRET_KEY }}") | gpg --batch --import
-          gpg --list-secret-keys --keyid-format LONG
-
-      - name: Sonatype Snapshot
-        if: ${{ github.event_name == 'push' }}
-        env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
-        shell: bash
-        run: |
-          mvn \
-            -Dgpg.passphrase=${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }} \
-            --batch-mode \
-            --no-transfer-progress \
-            deploy
-
-      - name: Sonatype Release
-        if: ${{ github.event_name == 'release' && github.event.action == 'created' }}
-        env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
-        shell: bash
-        run: |
-          mvn \
-            -Drevision="${GITHUB_REF#refs/tags/}" \
-            -Dgpg.passphrase="${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}" \
-            --batch-mode \
-            --no-transfer-progress \
-            deploy
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v2
@@ -799,15 +766,6 @@ jobs:
             ${{github.workspace}}/target/*.asc
             ${{github.workspace}}/target/*.pom
           if-no-files-found: error
-
-      - name: Release Artifacts
-        if: ${{ github.event_name == 'release' && github.event.action == 'created' }}
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ${{github.workspace}}/target/*.jar
-            ${{github.workspace}}/target/*.asc
-            ${{github.workspace}}/target/*.pom
 
       - name: Delete Cache
         uses: geekyeggo/delete-artifact@v1
